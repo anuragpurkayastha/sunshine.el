@@ -2,7 +2,9 @@
 
 ;; Author: Aaron Bieber <aaron@aaronbieber.com>
 ;; Version: 0.1
-;; Package-Version: 20181029.1654
+;; Package-Commit: 88256223539edcfe57017778a997a474c9c022f6
+;; Package-Version: 20200306.1711
+;; Package-X-Original-Version: 20181029.1654
 ;; Package-X-Original-Version: 20150620.1320
 ;; Package-Requires: ((cl-lib "0.5"))
 ;; Keywords: tools, weather
@@ -90,7 +92,7 @@ The default value is one day (86400 seconds)."
   :type 'boolean)
 
 (defface sunshine-forecast-headline-face
-  '((t (:foreground "navajo white" :height 1.5)))
+  '((t (:weight ultra-bold :foreground "#7f7f7f" :height 1.5)))
   "The headline (location) text in the full-size forecast."
   :group 'sunshine)
 
@@ -100,7 +102,7 @@ The default value is one day (86400 seconds)."
   :group 'sunshine)
 
 (defface sunshine-forecast-date-face
-  '((t (:weight ultra-bold :foreground "white")))
+  '((t (:weight ultra-bold :foreground "#7f7f7f")))
   "Date text in the full-size forecast."
   :group 'sunshine)
 
@@ -152,12 +154,10 @@ The following keys are available in `sunshine-mode':
   "Make a URL for retrieving the weather for LOCATION in UNITS.
 
 Requires your OpenWeatherMap APPID."
-  (concat "http://api.openweathermap.org/data/2.5/forecast?q="
-          (url-encode-url location)
+  (concat "https://api.openweathermap.org/data/2.5/onecall?lat=-37.66&lon=144.56&exclude=hourly,minutely,alerts"
           "&APPID=" appid
-          "&mode=json&units="
-          (url-encode-url (symbol-name units))
-          "&cnt=5"))
+          "&units=metric"
+          ))
 
 (defun sunshine-get-forecast (location units display-type appid)
   "Get forecast data from OpenWeatherMap's API.
@@ -261,22 +261,22 @@ If omitted, or nil, a date object is returned."
   "Build a simple, legible forecast from FORECAST.
 FORECAST is the raw forecast data resulting from calling json-read on the
 forecast results."
-  (let* ((citylist (cdr (assoc 'city forecast)))
-         (city (cdr (assoc 'name citylist)))
-         (country (cdr (assoc 'country citylist)))
-         (temp-symbol (sunshine-units-symbol)))
+  (let* ((temp-symbol (sunshine-units-symbol))
+         (currentlist (cdr (assoc 'current forecast)))
+         (current-temp (cdr (assoc 'temp currentlist)))
+         (current-cond (cdr (assoc 'description (elt (cdr (assoc 'weather currentlist)) 0)))))
     (list
-     (cons 'location (concat city ", " country))
-     (cons 'days (cl-loop for day across (cdr (assoc 'list forecast)) collect
+     (cons 'location (concat "Melton, AU. Currently " (format "%s %s, " (round current-temp) temp-symbol) current-cond))
+     (cons 'days (cl-loop for day across (cdr (assoc 'daily forecast)) collect
                          (list
-                          (cons 'date (format-time-string "%A, %h. %e" (seconds-to-time (cdr (assoc 'dt day)))))
+                          (cons 'date (format-time-string "%a, %h %d" (seconds-to-time (cdr (assoc 'dt day)))))
                           (cons 'desc (cdr (assoc 'main (elt (cdr (assoc 'weather day)) 0))))
                           (cons 'icon (cdr (assoc 'icon (elt (cdr (assoc 'weather day)) 0))))
                           (cons 'temp
                                 (list
-                                 (cons 'min (format "%s %s" (round (cdr (assoc 'temp_min (cdr (assoc 'main day))))) temp-symbol))
-                                 (cons 'max (format "%s %s" (round (cdr (assoc 'temp_max (cdr (assoc 'main day))))) temp-symbol))))
-                          (cons 'pressure (cdr (assoc 'pressure (cdr (assoc 'main day)))))))))))
+                                 (cons 'min (format "%s %s" (round (cdr (assoc 'min (cdr (assoc 'temp day))))) temp-symbol))
+                                 (cons 'max (format "%s %s" (round (cdr (assoc 'max (cdr (assoc 'temp day))))) temp-symbol))))
+                          (cons 'pressure (cdr (assoc 'pressure day)))))))))
 
 (defun sunshine-prepare-buffer ()
   "Prepare a buffer for the forecast output."
@@ -345,7 +345,7 @@ Pivot it into a dataset like:
           (while row
             (if (or sunshine-show-icons
                     (not (equal type "icons")))
-                (insert (sunshine-pad-or-trunc (sunshine-row-type-propertize (car row) type col) 20 1)
+                (insert (sunshine-pad-or-trunc (sunshine-row-type-propertize (car row) type col) 23 1)
                         (if (and (/= 1 (length row))
                                  (not (equal type "icons")))
                             (propertize "\u2502" 'font-lock-face 'sunshine-forecast-day-divider-face)
@@ -481,7 +481,7 @@ available width, truncate it to fit, optionally appending TRUNC-STRING."
 (defun sunshine-units-symbol ()
   "Return the symbol appropriate for the current value of sunshine-units."
   (cond ((equal sunshine-units 'imperial) "F")
-        ((equal sunshine-units 'metric) "C")))
+        ((equal sunshine-units 'metric) "°C")))
 
 (provide 'sunshine)
 ;;; sunshine.el ends here
