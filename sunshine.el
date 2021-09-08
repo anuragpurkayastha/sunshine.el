@@ -62,6 +62,16 @@ The location value should be a city/state value like \"New York, NY\""
   :group 'sunshine
   :type 'string)
 
+(defcustom sunshine-location-lat "-37.66"
+  "The default location latitude for which to receive the weather data."
+  :group 'sunshine
+  :type 'string)
+
+(defcustom sunshine-location-long "144.56"
+  "The default location latitude for which to receive the weather data."
+  :group 'sunshine
+  :type 'string)
+
 (defcustom sunshine-appid ""
   "You can get an APPID by logging into your OpenWeather account.
 You should get it by loging-in to your account and pasting the API key here."
@@ -154,7 +164,11 @@ The following keys are available in `sunshine-mode':
   "Make a URL for retrieving the weather for LOCATION in UNITS.
 
 Requires your OpenWeatherMap APPID."
-  (concat "https://api.openweathermap.org/data/2.5/onecall?lat=-37.66&lon=144.56&exclude=hourly,minutely,alerts"
+  (concat "https://api.openweathermap.org/data/2.5/onecall?lat="
+          (url-encode-url sunshine-location-lat)
+          "&lon="
+          (url-encode-url sunshine-location-long)
+          "&exclude=hourly,minutely,alerts"
           "&APPID=" appid
           "&units=metric"
           ))
@@ -266,7 +280,7 @@ forecast results."
          (current-temp (cdr (assoc 'temp currentlist)))
          (current-cond (cdr (assoc 'description (elt (cdr (assoc 'weather currentlist)) 0)))))
     (list
-     (cons 'location (concat "Melton, AU. Currently " (format "%s %s, " (round current-temp) temp-symbol) current-cond))
+     (cons 'location (concat "Currently " (format "%s%s, " (round current-temp) temp-symbol) current-cond))
      (cons 'days (cl-loop for day across (cdr (assoc 'daily forecast)) collect
                          (list
                           (cons 'date (format-time-string "%a, %h %d" (seconds-to-time (cdr (assoc 'dt day)))))
@@ -333,7 +347,7 @@ Pivot it into a dataset like:
     (save-excursion
       (insert (concat " "
                       ;; Heading, in tall text.
-                      (propertize (concat "Forecast for " location)
+                      (propertize location
                                   'font-lock-face 'sunshine-forecast-headline-face)
                       ;; Newline, providing extra space below.
                       (propertize "\n" 'line-spacing .5)))
@@ -368,7 +382,7 @@ Pivot it into a dataset like:
          (location (cdr (assoc 'location forecast)))
          (output-rows (sunshine-pivot-forecast-rows forecast)))
     (message (concat
-      "Forecast for " location " (updated " cached ")\n\n"
+       location " (updated " cached ")\n\n"
       ;; Dates
       (propertize (sunshine-pad-or-trunc (cadr (assoc "dates" output-rows)) 20)
                   'face '(:weight bold))
